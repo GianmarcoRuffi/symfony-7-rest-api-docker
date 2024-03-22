@@ -10,36 +10,23 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Entity\Bike;
 use App\Entity\Engine;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use App\Service\BikeService;
 
 
 #[Route('/api', name: 'api_')]
 class BikeController extends AbstractController
 {
-    #[Route('/bikes', name: 'bike_index', methods: ['get'])]
-    public function index(EntityManagerInterface $entityManager): JsonResponse
+    private $bikeService;
+
+    public function __construct(BikeService $bikeService)
     {
-        try {
-            $bikes = $entityManager->getRepository(Bike::class)->findAll();
+        $this->bikeService = $bikeService;
+    }
 
-            $data = [];
-            foreach ($bikes as $bike) {
-                $data[] = [
-                    'id' => $bike->getId(),
-                    'brand' => $bike->getBrand(),
-                    'engine' => [
-                        'name' => $bike->getEngine()->getName(),
-                        'serial_code' => $bike->getEngine()->getSerialCode(),
-                        'manufacturer' => $bike->getEngine()->getManufacturer(),
-                        'horsepower' => $bike->getEngine()->getHorsepower(),
-                    ],
-                    'color' => $bike->getColor(),
-                ];
-            }
-
-            return $this->json($data);
-        } catch (\Exception $e) {
-            return $this->json(['error' => $e->getMessage()], 500);
-        }
+    #[Route('/bikes', name: 'bike_index', methods: ['GET'])]
+    public function index(): JsonResponse
+    {
+        return $this->bikeService->getAllBikes();
     }
 
     #[Route('/bikes', name: 'bike_create', methods: ['post'])]
@@ -89,28 +76,10 @@ class BikeController extends AbstractController
     }
 
 
-    #[Route('/bikes/{id}', name: 'bike_show', methods: ['get'])]
-    public function show(EntityManagerInterface $entityManager, int $id): JsonResponse
+    #[Route('/bikes/{id}', name: 'bike_show', methods: ['GET'])]
+    public function show(int $id): ?JsonResponse
     {
-        $bike = $entityManager->getRepository(Bike::class)->find($id);
-
-        if (!$bike) {
-            return $this->json('No bike found for id: ' . $id, 404);
-        }
-
-        $data = [
-            'id' => $bike->getId(),
-            'brand' => $bike->getBrand(),
-            'engine' => [
-                'name' => $bike->getEngine()->getName(),
-                'serial_code' => $bike->getEngine()->getSerialCode(),
-                'manufacturer' => $bike->getEngine()->getManufacturer(),
-                'horsepower' => $bike->getEngine()->getHorsepower(),
-            ],
-            'color' => $bike->getColor(),
-        ];
-
-        return $this->json($data);
+        return $this->bikeService->getBikeById($id);
     }
 
 
@@ -173,20 +142,15 @@ class BikeController extends AbstractController
     }
 
 
-    #[Route('/bikes/{id}', name: 'bike_delete', methods: ['delete'])]
-    public function delete(EntityManagerInterface $entityManager, int $id): JsonResponse
+    #[Route('/bikes/{id}', name: 'bike_delete', methods: ['DELETE'])]
+    public function delete(int $id): JsonResponse
     {
-        $bike = $entityManager->getRepository(Bike::class)->find($id);
+        $deleted = $this->bikeService->deleteBikeById($id);
 
-        if (!$bike) {
+        if (!$deleted) {
             return new JsonResponse(null, JsonResponse::HTTP_NO_CONTENT);
         }
 
-        $brand = $bike->getBrand();
-
-        $entityManager->remove($bike);
-        $entityManager->flush();
-
-        return $this->json('The ' . $brand . ' bike with the id ' . $id . ' has been successfully deleted');
+        return new JsonResponse('The bike with the id ' . $id . ' has been successfully deleted');
     }
 }

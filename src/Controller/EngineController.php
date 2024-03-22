@@ -9,35 +9,27 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use App\Entity\Engine;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use App\Service\EngineService;
 
 #[Route('/api', name: 'api_')]
 class EngineController extends AbstractController
 {
-    #[Route('/engines', name: 'engine_index', methods: ['GET'])]
-    public function index(EntityManagerInterface $entityManager): JsonResponse
+    private $engineService;
+
+    public function __construct(EngineService $engineService)
     {
-        try {
-            $engines = $entityManager
-                ->getRepository(Engine::class)
-                ->findAll();
-
-            $data = [];
-
-            foreach ($engines as $engine) {
-                $data[] = [
-                    'id' => $engine->getSerialCode(),
-                    'name' => $engine->getName(),
-                    'serial_code' => $engine->getSerialCode(),
-                    'horsepower' => $engine->getHorsepower(),
-                    'manufacturer' => $engine->getManufacturer(),
-                ];
-            }
-
-            return $this->json($data);
-        } catch (\Exception $e) {
-            return $this->json(['error' => $e->getMessage()], 500);
-        }
+        $this->engineService = $engineService;
     }
+
+
+
+    #[Route('/engines', name: 'engine_index', methods: ['GET'])]
+    public function index(): JsonResponse
+    {
+        return $this->engineService->getAllEngines();
+    }
+
+
 
     #[Route('/engines', name: 'engine_create', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
@@ -82,9 +74,9 @@ class EngineController extends AbstractController
     }
 
     #[Route('/engines/{serial_code}', name: 'engine_show', methods: ['GET'])]
-    public function show(EntityManagerInterface $entityManager, string $serial_code): JsonResponse
+    public function show(string $serial_code): JsonResponse
     {
-        $engine = $entityManager->getRepository(Engine::class)->findOneBy(['SerialCode' => $serial_code]);
+        $engine = $this->engineService->getEngineBySerialCode($serial_code);
 
         if (!$engine) {
             return $this->json('No engine found for serial code: ' . $serial_code, 404);
@@ -135,16 +127,13 @@ class EngineController extends AbstractController
     }
 
     #[Route('/engines/{serial_code}', name: 'engine_delete', methods: ['DELETE'])]
-    public function delete(EntityManagerInterface $entityManager, string $serial_code): JsonResponse
+    public function delete(string $serial_code): JsonResponse
     {
-        $engine = $entityManager->getRepository(Engine::class)->findOneBy(['SerialCode' => $serial_code]);
+        $success = $this->engineService->deleteEngine($serial_code);
 
-        if (!$engine) {
+        if (!$success) {
             return new JsonResponse(null, JsonResponse::HTTP_NO_CONTENT);
         }
-
-        $entityManager->remove($engine);
-        $entityManager->flush();
 
         return $this->json('The engine with serial code ' . $serial_code . ' has been successfully deleted');
     }
