@@ -7,6 +7,8 @@ services:
       MYSQL_DATABASE: motorbikes_db
     volumes:
       - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
   php:
     build:
       context: .
@@ -14,7 +16,7 @@ services:
     volumes:
       - .:/var/www/html
     ports:
-      - "8000:8000"
+      - "8000:80"
     depends_on:
       - db
 
